@@ -28,6 +28,8 @@ from invoke import task
 venv = "source ./venv/bin/activate"
 GOOGLE_CLOUD_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT")
 REGION = os.environ.get("REGION", "us-central1")
+REPOSITORY = os.environ.get("REPOSITORY", "samples")
+SERVICE_NAME = os.environ.get("SERVICE_NAME", "microservice-template")
 
 
 @task
@@ -119,8 +121,8 @@ def fix(c):  # noqa: ANN001, ANN201
 def build(c):  # noqa: ANN001, ANN201
     """Build the service into a container image"""
     c.run(
-        f"gcloud builds submit --pack "
-        f"image={REGION}-docker.pkg.dev/{GOOGLE_CLOUD_PROJECT}/samples/microservice-template:manual"
+        "gcloud builds submit --tag "
+        f"{REGION}-docker.pkg.dev/{GOOGLE_CLOUD_PROJECT}/{REPOSITORY}/{SERVICE_NAME}:manual"
     )
 
 
@@ -128,9 +130,12 @@ def build(c):  # noqa: ANN001, ANN201
 def deploy(c):  # noqa: ANN001, ANN201
     """Deploy the container into Cloud Run (fully managed)"""
     c.run(
-        "gcloud run deploy microservice-template "
-        f"--image {REGION}-docker.pkg.dev/{GOOGLE_CLOUD_PROJECT}/samples/microservice-template:manual "
-        f"--platform managed --region {REGION}"
+        f"gcloud beta run deploy {SERVICE_NAME} "
+        f"--image {REGION}-docker.pkg.dev/{GOOGLE_CLOUD_PROJECT}/{REPOSITORY}/{SERVICE_NAME}:manual "
+        f"--platform managed --region {REGION} "
+        f"--cpu 4 --memory 16Gi --no-cpu-throttling "
+        f"--gpu 1 --gpu-type nvidia-l4 "
+        f"--min-instances 0 --max-instances 1 "
     )
 
 

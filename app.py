@@ -19,8 +19,24 @@ from types import FrameType
 from flask import Flask
 
 from utils.logging import logger
+from comet import download_model, load_from_checkpoint
 
 app = Flask(__name__)
+
+
+def commet_score(commet_srcs, commet_mt, commet_ref):
+    logger.info("Downloading COMET model")
+    comet_model_path = download_model("Unbabel/wmt22-comet-da", local_files_only=True)
+    comet_model = load_from_checkpoint(comet_model_path)
+    comet_data = []
+    for i in range(len(commet_srcs)):
+        comet_instance = {}
+        comet_instance["src"] = commet_srcs[i]
+        comet_instance["mt"] = commet_mt[i]
+        comet_instance["ref"] = commet_ref[i]
+        comet_data.append(comet_instance)
+    scores = comet_model.predict(comet_data, batch_size=8, gpus=1, progress_bar=False).scores
+    return scores
 
 
 @app.route("/")
@@ -31,7 +47,36 @@ def hello() -> str:
     # https://cloud.google.com/run/docs/logging#correlate-logs
     logger.info("Child logger with trace Id.")
 
-    return "Hello, World!"
+    src = [
+        "The bodies of the five women who worked as sex workers in Ipswich were found around the town in December 2006.",
+        "The bodies of the five women who worked as sex workers in Ipswich were found around the town in December 2006.",
+        "The bodies of the five women who worked as sex workers in Ipswich were found around the town in December 2006.",
+        "The bodies of the five women who worked as sex workers in Ipswich were found around the town in December 2006.",
+        "The bodies of the five women who worked as sex workers in Ipswich were found around the town in December 2006.",
+        "The bodies of the five women who worked as sex workers in Ipswich were found around the town in December 2006.",
+    ]
+
+    mt = [
+        "2006年12月、イプスイッチでセックスワーカーとして働いていた女性五人が同町周辺で遺体となって発見された。",
+        "イプスウィッチで性産業に従事していた5人の遺体が、2006年12月に町の周辺で発見された。",
+        "イプスウィッチで性産業従事者として働いていた5人の女性は、2006年の12月に死体となって街の近くで発見された。",
+        "イプスウィッチでセックスワーカーとして働いていた5人の女性の遺体が、2006年12月に町の周辺で発見された。",
+        "イプスウィッチで性産業に従事していた五人の女性の遺体は、2006年12月に村周辺で見つかった。",
+        "2006年12月に、イプスウィチで性産業に従事していた5人の女性の遺体が街の周辺で発見された。",
+    ]
+
+    ref = [
+        "イプスウィッチで売春婦として働いていた5人の女性の遺体は、2006年12月に町の周辺で見つかった。",
+        "イプスウィッチで売春婦として働いていた5人の女性の遺体は、2006年12月に町の周辺で見つかった。",
+        "イプスウィッチで売春婦として働いていた5人の女性の遺体は、2006年12月に町の周辺で見つかった。",
+        "イプスウィッチで売春婦として働いていた5人の女性の遺体は、2006年12月に町の周辺で見つかった。",
+        "イプスウィッチで売春婦として働いていた5人の女性の遺体は、2006年12月に町の周辺で見つかった。",
+        "イプスウィッチで売春婦として働いていた5人の女性の遺体は、2006年12月に町の周辺で見つかった。",
+    ]
+
+    score = commet_score(src, mt, ref)
+
+    return f"COMET Score: {score}"
 
 
 def shutdown_handler(signal_int: int, frame: FrameType) -> None:
